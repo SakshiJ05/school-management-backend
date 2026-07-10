@@ -1,0 +1,11 @@
+# Secrets live in `fly secrets`, never in the image.
+.env
+.env.*
+
+node_modules
+npm-debug.log
+.git
+.gitignore
+Dockerfile
+.dockerignore
+fly.toml

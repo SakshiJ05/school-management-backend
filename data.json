@@ -1,0 +1,62 @@
+﻿{
+    "users":  [
+
+              ],
+    "classes":  [
+
+                ],
+    "sections":  [
+
+                 ],
+    "students":  [
+
+                 ],
+    "teachers":  [
+
+                 ],
+    "subjects":  [
+
+                 ],
+    "attendance":  [
+
+                   ],
+    "exams":  [
+
+              ],
+    "marks":  [
+
+              ],
+    "fees":  [
+
+             ],
+    "payments":  [
+
+                 ],
+    "timetable":  [
+
+                  ],
+    "libraryBooks":  [
+
+                     ],
+    "bookIssues":  [
+
+                   ],
+    "transportRoutes":  [
+
+                        ],
+    "notices":  [
+
+                ],
+    "homework":  [
+
+                 ],
+    "leaveRequests":  [
+
+                      ],
+    "tenants":  [
+
+                ],
+    "siteConfig":  {
+
+                   }
+}

@@ -1,0 +1,259 @@
+{
+  "users": [
+    {
+      "id": "u1",
+      "email": "admin@school.com",
+      "passwordHash": "$2b$10$gyPPLIaGg1FsBLMoqylHvOBU.WHCsJ.7eWJ4NboxxLGlmdF4waeMe",
+      "role": "admin",
+      "name": "Principal Admin",
+      "status": "active",
+      "tenantId": "tenant_demo",
+      "tenantSlug": "demo-school"
+    },
+    {
+      "id": "u2",
+      "email": "teacher@school.com",
+      "passwordHash": "$2b$10$RHdlU.J6YNXtDOaM.Dk1I..pJRYMrl7u1MCn/AJoeIJvfcYFBA27O",
+      "role": "teacher",
+      "name": "Demo Teacher",
+      "status": "active",
+      "tenantId": "tenant_demo",
+      "tenantSlug": "demo-school"
+    },
+    {
+      "id": "u3",
+      "email": "student@school.com",
+      "passwordHash": "$2b$10$y4vv2jpydZaFBzSMwJm5DeucVb.PfoHb25rotWw9xCEZfVqPPaIQq",
+      "role": "student",
+      "name": "Demo Student",
+      "status": "active",
+      "tenantId": "tenant_demo",
+      "tenantSlug": "demo-school"
+    },
+    {
+      "id": "u4",
+      "email": "parent@school.com",
+      "passwordHash": "$2b$10$F6zap.Gu.lYEWERsUVV85ufQKnyXO.n7bkgEYeDg3ci.EKMkjLVWK",
+      "role": "parent",
+      "name": "Demo Parent",
+      "status": "active",
+      "tenantId": "tenant_demo",
+      "tenantSlug": "demo-school"
+    },
+    {
+      "id": "u1p",
+      "tenantId": "tenant_demo",
+      "tenantSlug": "demo-school",
+      "email": "principal@school.com",
+      "passwordHash": "$2b$10$5pmLGIxTwacs8w3WH37toOwu.v56A/Z99nZdYtFWL1eoQPUsGyW9S",
+      "role": "principal",
+      "name": "Dr. Priya Sharma",
+      "status": "active"
+    }
+  ],
+  "classes": [
+    {
+      "id": "c1",
+      "name": "Class 10",
+      "level": 10,
+      "academicYear": "2025-26",
+      "tenantId": "tenant_demo"
+    },
+    {
+      "id": "c2",
+      "name": "Class 9",
+      "level": 9,
+      "academicYear": "2025-26",
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "sections": [
+    {
+      "id": "s1",
+      "classId": "c1",
+      "name": "A",
+      "capacity": 40,
+      "tenantId": "tenant_demo"
+    },
+    {
+      "id": "s2",
+      "classId": "c1",
+      "name": "B",
+      "capacity": 40,
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "students": [
+    {
+      "id": "st1",
+      "userId": "u3",
+      "rollNo": "101",
+      "classId": "c1",
+      "sectionId": "s1",
+      "admissionDate": "2025-04-01",
+      "phone": "9000000001",
+      "tenantId": "tenant_demo",
+      "name": "Demo Student",
+      "email": "student@school.com",
+      "admissionNo": "ADM2025001",
+      "class": "10",
+      "section": "A",
+      "gender": "Male",
+      "status": "Active"
+    },
+    {
+      "id": "st_mpz3k1vcavvp0e",
+      "tenantId": "tenant_demo",
+      "name": "Velit tempora sunt ",
+      "email": "suqulu@mailinator.com",
+      "phone": "Autem officia sit eo",
+      "admissionNo": "A magni est aliquid",
+      "class": "10th",
+      "section": "C",
+      "rollNo": "Minus labore delenit",
+      "gender": "Male",
+      "status": "Inactive",
+      "dateOfBirth": "2025-10-24",
+      "address": "In nulla consequat ",
+      "parentName": "Perferendis mollit n",
+      "parentPhone": "Ea sit est aliquam e",
+      "parentEmail": "livivucop@mailinator.com",
+      "parentRelation": "Guardian",
+      "studentClass": "10th"
+    }
+  ],
+  "teachers": [
+    {
+      "id": "t1",
+      "userId": "u2",
+      "employeeId": "EMP001",
+      "department": "Science",
+      "designation": "Senior Teacher",
+      "tenantId": "tenant_demo",
+      "name": "Demo Teacher",
+      "email": "teacher@school.com",
+      "subject": "Science"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "sub1",
+      "name": "Mathematics",
+      "code": "MATH",
+      "classId": "c1",
+      "tenantId": "tenant_demo"
+    },
+    {
+      "id": "sub2",
+      "name": "English",
+      "code": "ENG",
+      "classId": "c1",
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "attendance": [
+    {
+      "id": "a1",
+      "studentId": "st1",
+      "date": "2026-04-20",
+      "status": "present",
+      "remarks": "",
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "exams": [
+    {
+      "id": "e1",
+      "name": "Mid Term",
+      "type": "mid-term",
+      "classId": "c1",
+      "startDate": "2026-05-01",
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "marks": [],
+  "fees": [
+    {
+      "id": "f1",
+      "studentId": "st1",
+      "amount": 15000,
+      "dueDate": "2026-04-30",
+      "status": "pending",
+      "head": "Tuition",
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "payments": [],
+  "timetable": [
+    {
+      "id": "tt1",
+      "classId": "c1",
+      "day": "Monday",
+      "period": 1,
+      "subjectId": "sub1",
+      "teacherId": "t1",
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "libraryBooks": [
+    {
+      "id": "b1",
+      "title": "NCERT Mathematics X",
+      "author": "NCERT",
+      "isbn": "978-817450634",
+      "quantity": 25,
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "bookIssues": [],
+  "transportRoutes": [
+    {
+      "id": "r1",
+      "routeName": "North Zone",
+      "vehicleId": "v1",
+      "driverId": "d1"
+    }
+  ],
+  "notices": [
+    {
+      "id": "n1",
+      "title": "Annual Day",
+      "body": "Rehearsals start next week.",
+      "createdAt": "2026-04-18",
+      "priority": "high",
+      "tenantId": "tenant_demo"
+    }
+  ],
+  "homework": [],
+  "leaveRequests": [],
+  "tenants": [
+    {
+      "id": "tenant_demo",
+      "name": "Scholify Demo School",
+      "slug": "demo-school",
+      "subdomain": "demo",
+      "theme": {
+        "primaryColor": "#2563eb",
+        "secondaryColor": "#7c3aed"
+      }
+    }
+  ],
+  "siteConfig": {
+    "tenantId": "tenant_demo",
+    "branding": {
+      "schoolName": "Scholify Demo School",
+      "tagline": "Learn. Grow. Lead."
+    },
+    "theme": {
+      "primaryColor": "#2563eb",
+      "secondaryColor": "#7c3aed"
+    },
+    "dynamicPages": [
+      {
+        "key": "about",
+        "title": "About Us",
+        "content": "Welcome to Scholify."
+      }
+    ]
+  }
+}

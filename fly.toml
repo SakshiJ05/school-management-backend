@@ -1,0 +1,27 @@
+app = "scholify-api"
+primary_region = "bom"
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  # No MySQL in the cloud; Atlas is the only store. Local XAMPP mirror stays off.
+  SQL_MIRROR = "off"
+  TRUST_PROXY = "1"
+  # The Capacitor WebView's origin, plus the local dev hosts.
+  CORS_ORIGIN = "http://localhost,https://localhost,capacitor://localhost,http://localhost:4200,http://localhost:5173"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
