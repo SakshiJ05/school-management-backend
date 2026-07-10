@@ -118,7 +118,14 @@ router.post(
 
     const result = await sendOtpEmail(email, otp, 'registration');
     if (!result.sent) {
-      return res.status(502).json({ message: 'Could not send the OTP email. Please try again.' });
+      // Delivery failed (blocked port, bad credentials). Blocking signup on an OTP
+      // the user can never read helps nobody — skip the challenge, as when SMTP
+      // is absent, and leave the failure in the logs.
+      console.warn('[AUTH] OTP email failed — registration OTP skipped for', email);
+      return res.json({
+        message: 'Email verification is unavailable. Continue to create your account.',
+        data: { sent: false, otpRequired: false },
+      });
     }
 
     // Store only after delivery, so a failed send never blocks the next attempt.

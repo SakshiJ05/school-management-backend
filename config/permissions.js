@@ -63,7 +63,8 @@ export const ROLE_PERMISSIONS = {
     notifications: read,
   },
   teacher: {
-    students: read,
+    // Teachers enrol students but may not remove them.
+    students: cru,
     teachers: read,
     classes: read,
     subjects: read,

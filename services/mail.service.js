@@ -26,20 +26,39 @@ export async function sendOtpEmail(to, otp, purpose = 'verification') {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      // Hosts commonly block outbound SMTP. Without these the socket just hangs
+      // and the signup request never answers.
+      connectionTimeout: 8_000,
+      greetingTimeout: 8_000,
+      socketTimeout: 10_000,
     });
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to,
-      subject,
-      text,
-      html: `<p>Your <strong>${appName}</strong> ${purpose} OTP is:</p><h2>${otp}</h2><p>This code is valid for 10 minutes.</p>`,
-    });
+    // Belt and braces: nodemailer's timeouts do not cover every stage of the send.
+    await withTimeout(
+      transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to,
+        subject,
+        text,
+        html: `<p>Your <strong>${appName}</strong> ${purpose} OTP is:</p><h2>${otp}</h2><p>This code is valid for 10 minutes.</p>`,
+      }),
+      SEND_TIMEOUT_MS,
+    );
 
     console.log(`[MAIL] Sent OTP email to ${to}`);
     return { sent: true, dev: false };
   } catch (error) {
-    console.error('[MAIL] Failed to send OTP email:', error);
+    console.error('[MAIL] Failed to send OTP email:', error.message);
     return { sent: false, error };
   }
+}
+
+const SEND_TIMEOUT_MS = 12_000;
+
+function withTimeout(promise, ms) {
+  let timer;
+  const guard = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`SMTP send timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
 }
