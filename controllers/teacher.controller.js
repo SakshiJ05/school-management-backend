@@ -4,6 +4,7 @@ import { readDb, writeDb } from '../utils/db.js';
 import { tenantQuery } from '../utils/tenantFilter.js';
 import { emitTenant } from '../services/realtime.service.js';
 import { getPlanLimit } from '../services/subscription.service.js';
+import { notifySafely, notifySuperAdmins, notifyTenantAdmins } from '../services/notification.service.js';
 
 function toDto(doc) {
   const o = doc.toObject ? doc.toObject() : doc;
@@ -72,6 +73,13 @@ export const TeacherController = {
         ...tenantQuery(req),
       });
       emitTenant(req.tenantId, 'teachers:created', created);
+      const event = {
+        title: 'New teacher added',
+        message: `${created.name} (${created.employeeId}) was added to the school.`,
+        createdBy: req.user._id || req.user.id,
+      };
+      notifySafely(notifyTenantAdmins({ ...event, tenantId: req.tenantId }), 'teacher/admin');
+      notifySafely(notifySuperAdmins(event), 'teacher/super-admin');
       res.status(201).json(toDto(created));
     } catch (err) {
       next(err);

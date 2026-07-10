@@ -1,62 +1,44 @@
-﻿{
-    "users":  [
-
-              ],
-    "classes":  [
-
-                ],
-    "sections":  [
-
-                 ],
-    "students":  [
-
-                 ],
-    "teachers":  [
-
-                 ],
-    "subjects":  [
-
-                 ],
-    "attendance":  [
-
-                   ],
-    "exams":  [
-
-              ],
-    "marks":  [
-
-              ],
-    "fees":  [
-
-             ],
-    "payments":  [
-
-                 ],
-    "timetable":  [
-
-                  ],
-    "libraryBooks":  [
-
-                     ],
-    "bookIssues":  [
-
-                   ],
-    "transportRoutes":  [
-
-                        ],
-    "notices":  [
-
-                ],
-    "homework":  [
-
-                 ],
-    "leaveRequests":  [
-
-                      ],
-    "tenants":  [
-
-                ],
-    "siteConfig":  {
-
-                   }
+{
+  "users": [
+    {
+      "id": "u1p",
+      "tenantId": "tenant_demo",
+      "tenantSlug": "demo-school",
+      "email": "principal@school.com",
+      "passwordHash": "$2b$10$KKIvao.jksNe31Ar.A7k6eBm7gsqOqIfgiqDz0tQlEE3wcSczh1Cm",
+      "role": "principal",
+      "name": "Dr. Priya Sharma",
+      "status": "active"
+    }
+  ],
+  "classes": [],
+  "sections": [],
+  "students": [],
+  "teachers": [],
+  "subjects": [],
+  "attendance": [],
+  "exams": [],
+  "marks": [],
+  "fees": [],
+  "payments": [],
+  "timetable": [],
+  "libraryBooks": [],
+  "bookIssues": [],
+  "transportRoutes": [],
+  "notices": [],
+  "homework": [],
+  "leaveRequests": [],
+  "tenants": [
+    {
+      "id": "tenant_demo",
+      "name": "PathshalaPro Demo School",
+      "slug": "demo-school",
+      "subdomain": "demo",
+      "theme": {
+        "primaryColor": "#2563eb",
+        "secondaryColor": "#7c3aed"
+      }
+    }
+  ],
+  "siteConfig": {}
 }

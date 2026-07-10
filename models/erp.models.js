@@ -49,21 +49,11 @@ export const StudentFeeAssignment = tenantModel(
 
 /* ---- Communication ---- */
 export const Broadcast = tenantModel('Broadcast', {
-  title: { type: String, required: true, trim: true },
+  title: { type: String, default: '', trim: true },
+  subject: { type: String, required: true, trim: true },
   body: { type: String, default: '' },
   audience: [{ type: String }],
 });
-
-export const Notification = tenantModel(
-  'Notification',
-  {
-    title: { type: String, default: '' },
-    body: { type: String, default: '' },
-    read: { type: Boolean, default: false },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  },
-  [{ tenantId: 1, userId: 1, read: 1 }],
-);
 
 /* ---- Transport ---- */
 export const TransportRoute = tenantModel('TransportRoute', {

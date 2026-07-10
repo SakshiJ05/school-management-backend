@@ -10,11 +10,11 @@ const DEFAULT_SETTINGS = {
   maintenanceMode: false,
   maintenanceMessage: 'System under maintenance. Please try again later.',
   emailTemplates: [
-    { key: 'welcome', subject: 'Welcome to Scholify', body: 'Hello {{name}}, welcome aboard!' },
+    { key: 'welcome', subject: 'Welcome to PathshalaPro', body: 'Hello {{name}}, welcome aboard!' },
     { key: 'fee_reminder', subject: 'Fee payment reminder', body: 'Dear parent, fees are due on {{dueDate}}.' },
   ],
   smsTemplates: [
-    { key: 'otp', body: 'Your Scholify OTP is {{otp}}. Valid for 10 minutes.' },
+    { key: 'otp', body: 'Your PathshalaPro OTP is {{otp}}. Valid for 10 minutes.' },
     { key: 'attendance', body: '{{student}} was marked {{status}} on {{date}}.' },
   ],
 };

@@ -1,4 +1,4 @@
-﻿const smtpReady = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+const smtpReady = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 
 async function getTransporter() {
   try {
@@ -18,7 +18,7 @@ async function getTransporter() {
 }
 
 export async function sendOtpEmail(to, otp, purpose = 'verification') {
-  const appName = process.env.APP_NAME || 'Scholify';
+  const appName = process.env.APP_NAME || 'PathshalaPro';
   const subject = `${appName} OTP verification`;
   const text = `Your ${appName} ${purpose} OTP is ${otp}. It is valid for 10 minutes.`;
 

@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
@@ -63,7 +63,7 @@ export async function startServer() {
   const port = Number(process.env.MYSQL_API_PORT) || 5001;
   return new Promise((resolve) => {
     const server = app.listen(port, () => {
-      console.log(`Scholify MySQL API â†’ http://localhost:${port}`);
+      console.log(`PathshalaPro MySQL API â†’ http://localhost:${port}`);
       console.log('  Tenant resolve: GET /api/tenant/resolve?subdomain=greenwood');
       console.log('  Super-admin:    POST /api/super-admin/schools');
       console.log('  School CRUD:    GET /api/students (X-School-Id or subdomain)');

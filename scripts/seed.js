@@ -18,7 +18,7 @@ export async function runSeedIfEmpty() {
   console.log('Seeding MongoDB sample data...');
 
   const tenantA = await Tenant.create({
-    name: 'Scholify Demo School',
+    name: 'PathshalaPro Demo School',
     slug: 'demo-school',
     subdomain: 'demo',
     email: 'office@demo-school.edu',
@@ -83,7 +83,7 @@ export async function runSeedIfEmpty() {
 
   await SiteConfig.create({
     tenantId: tenantA._id,
-    branding: { schoolName: 'Scholify Demo School', tagline: 'Learn. Grow. Lead.' },
+    branding: { schoolName: 'PathshalaPro Demo School', tagline: 'Learn. Grow. Lead.' },
     dynamicPages: [
       { key: 'about', title: 'About Us', content: 'A modern SaaS school platform.', updatedAt: new Date() },
     ],

@@ -4,7 +4,7 @@ const siteConfigSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, unique: true },
     branding: {
-      schoolName: { type: String, default: 'Scholify School' },
+      schoolName: { type: String, default: 'PathshalaPro School' },
       tagline: { type: String, default: '' },
       logoUrl: { type: String, default: '' },
     },

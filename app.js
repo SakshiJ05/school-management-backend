@@ -8,6 +8,7 @@ import teacherRoutes from './routes/teacher.routes.js';
 import studentRoutes from './routes/student.routes.js';
 import superAdminRoutes from './routes/super-admin.routes.js';
 import billingRoutes from './routes/billing.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 import { resolveTenant } from './middleware/tenant.middleware.js';
 import { requireAuth } from './middleware/auth.middleware.js';
 import { enforceSubscription } from './middleware/subscription.middleware.js';
@@ -58,6 +59,7 @@ app.use('/api/students', requireAuth, enforceSubscription, studentRoutes);
 app.use('/api/super-admin', superAdminRoutes);
 // Billing is NOT behind enforceSubscription — an expired school must be able to pay.
 app.use('/api/billing', billingRoutes);
+app.use('/api/notifications', notificationRoutes);
 // Catch-all resource router (has its own router-level requireAuth) — mount LAST.
 app.use('/api', resourceRoutes);
 

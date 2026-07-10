@@ -17,7 +17,7 @@ import { slugifySubdomain } from '../utils/subdomain.js';
 import { requestEmailOtp, verifyEmailOtp } from '../services/otp.service.js';
 
 function generateTempPassword() {
-  return `Scholify@${crypto.randomBytes(3).toString('hex')}`;
+  return `PathshalaPro@${crypto.randomBytes(3).toString('hex')}`;
 }
 
 

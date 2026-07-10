@@ -1,4 +1,4 @@
-# Scholify v2 — MySQL Backend (Redesign)
+# PathshalaPro v2 — MySQL Backend (Redesign)
 
 New MySQL + Sequelize layer lives in `backend/src/`. The legacy MongoDB API in `backend/server.js` still runs on port 5000 until the Angular app is fully migrated.
 

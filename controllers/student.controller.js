@@ -4,6 +4,7 @@ import { readDb, writeDb } from '../utils/db.js';
 import { tenantQuery } from '../utils/tenantFilter.js';
 import { emitTenant } from '../services/realtime.service.js';
 import { getPlanLimit } from '../services/subscription.service.js';
+import { notifySafely, notifySuperAdmins, notifyTenantAdmins } from '../services/notification.service.js';
 
 function fromBody(body) {
   const {
@@ -248,6 +249,13 @@ export const StudentController = {
       }
       const created = await Student.create({ ...payload, ...tenantQuery(req) });
       emitTenant(req.tenantId, 'students:created', created);
+      const event = {
+        title: 'New student added',
+        message: `${created.name} (${created.admissionNo}) was added to the school.`,
+        createdBy: req.user._id || req.user.id,
+      };
+      notifySafely(notifyTenantAdmins({ ...event, tenantId: req.tenantId }), 'student/admin');
+      notifySafely(notifySuperAdmins(event), 'student/super-admin');
       res.status(201).json(toDto(created));
     } catch (err) {
       next(err);

@@ -24,7 +24,6 @@ import {
   FeeConcession,
   StudentFeeAssignment,
   Broadcast,
-  Notification,
   TransportRoute,
   TransportAssignment,
   Enquiry,
@@ -47,9 +46,27 @@ import { generateTimetable } from '../services/timetable.service.js';
 import { emitTenant } from '../services/realtime.service.js';
 import { readDb, writeDb } from '../utils/db.js';
 import { toCsv } from '../utils/csv.js';
+import {
+  createNotification,
+  notifyLinkedStudent,
+  notifySafely,
+  notifyTenantAdmins,
+} from '../services/notification.service.js';
 
 const router = express.Router();
 const mongoReady = () => mongoose.connection.readyState === 1;
+
+function linkedStudentId(req) {
+  return ['student', 'parent'].includes(req.user?.role)
+    ? req.user?.linkedStudentId?.toString?.() || null
+    : undefined;
+}
+
+function applyLinkedStudentScope(req, query) {
+  const studentId = linkedStudentId(req);
+  if (studentId !== undefined) query.studentId = studentId || new mongoose.Types.ObjectId();
+  return query;
+}
 
 // Enforce tenant subscription (suspend/expiry) across all resource routes.
 // Runs before the per-route requireAuth so req.user/req.tenantId are resolved here.
@@ -110,9 +127,14 @@ function crudRoutes(Model, resource, opts = {}) {
         const key = opts.jsonKey || resource;
         let rows = readDb()[key] || [];
         if (req.tenantId) rows = rows.filter((row) => row.tenantId === req.tenantId);
+        if (opts.studentScoped) {
+          const own = linkedStudentId(req);
+          if (own !== undefined) rows = rows.filter((row) => String(row.studentId) === own);
+        }
         return res.json(rows);
       }
-      const rows = await Model.find(tenantQuery(req)).sort({ createdAt: -1 }).lean();
+      const query = opts.studentScoped ? applyLinkedStudentScope(req, tenantQuery(req)) : tenantQuery(req);
+      const rows = await Model.find(query).sort({ createdAt: -1 }).lean();
       res.json(rows.map((row) => ({ ...row, id: row._id })));
     }),
   );
@@ -151,6 +173,7 @@ function crudRoutes(Model, resource, opts = {}) {
       }
       const created = await Model.create({ ...req.body, ...tenantQuery(req) });
       emitTenant(req.tenantId, `${resource}:created`, created);
+      if (opts.afterCreate) notifySafely(opts.afterCreate(req, created), `${resource}/created`);
       res.status(201).json({ ...created.toObject(), id: created._id });
     }),
   );
@@ -213,7 +236,25 @@ router.use('/sections', crudRoutes(Section, 'classes', { jsonKey: 'sections' }))
 router.use('/subjects', crudRoutes(Subject, 'subjects', { jsonKey: 'subjects' }));
 router.use('/exams', crudRoutes(Exam, 'exams', { jsonKey: 'exams' }));
 router.use('/fee-structures', crudRoutes(FeeStructure, 'fees', { jsonKey: 'feeStructures' }));
-router.use('/notices', crudRoutes(Notice, 'notices', { jsonKey: 'notices' }));
+async function notifyAudience(req, source, fallbackTitle) {
+  const raw = Array.isArray(source.audience) ? source.audience : ['all'];
+  const roleMap = { parents: 'student', parent: 'student', students: 'student', class: 'student', teachers: 'teacher' };
+  const roles = new Set(raw.map((role) => roleMap[role] || role));
+  const supported = ['admin', 'teacher', 'student', 'all'];
+  const targets = roles.has('all') ? ['all'] : [...roles].filter((role) => supported.includes(role));
+  await Promise.all(targets.map((targetRole) => createNotification({
+    tenantId: req.tenantId,
+    title: source.title || source.subject || fallbackTitle,
+    message: source.body || source.message || fallbackTitle,
+    targetRole,
+    createdBy: req.user._id || req.user.id,
+  })));
+}
+
+router.use('/notices', crudRoutes(Notice, 'notices', {
+  jsonKey: 'notices',
+  afterCreate: (req, notice) => notifyAudience(req, notice, 'New notice published'),
+}));
 router.use('/homework', crudRoutes(Homework, 'homework', { jsonKey: 'homework' }));
 
 /**
@@ -226,21 +267,44 @@ router.use('/homework', crudRoutes(Homework, 'homework', { jsonKey: 'homework' }
  */
 router.use('/attendanceRecords', crudRoutes(Attendance, 'attendance', { jsonKey: 'attendance' }));
 router.use('/feeStructures', crudRoutes(FeeStructure, 'fees', { jsonKey: 'feeStructures' }));
-router.use('/feePayments', crudRoutes(FeePayment, 'fees', { jsonKey: 'fees' }));
+async function notifyFeeEvent(req, fee, verb = 'recorded') {
+  const createdBy = req.user._id || req.user.id;
+  const message = `A fee payment of ₹${Number(fee.amountPaid || fee.amount || 0).toLocaleString('en-IN')} was ${verb}.`;
+  await Promise.all([
+    notifyTenantAdmins({ tenantId: req.tenantId, title: 'Fee payment update', message, createdBy }),
+    notifyLinkedStudent({ tenantId: req.tenantId, studentId: fee.studentId, title: 'Fee payment update', message, createdBy }),
+  ]);
+}
+
+router.use('/feePayments', crudRoutes(FeePayment, 'fees', {
+  jsonKey: 'fees',
+  studentScoped: true,
+  afterCreate: (req, fee) => notifyFeeEvent(req, fee),
+}));
 router.use('/feeCategories', crudRoutes(FeeCategory, 'fees'));
-router.use('/feeConcessions', crudRoutes(FeeConcession, 'fees'));
-router.use('/studentFeeAssignments', crudRoutes(StudentFeeAssignment, 'fees'));
+router.use('/feeConcessions', crudRoutes(FeeConcession, 'fees', { studentScoped: true }));
+router.use('/studentFeeAssignments', crudRoutes(StudentFeeAssignment, 'fees', { studentScoped: true }));
 router.use('/timetables', crudRoutes(Timetable, 'timetable', { jsonKey: 'timetable' }));
 router.use('/books', crudRoutes(Book, 'library', { jsonKey: 'libraryBooks' }));
 router.use('/bookIssues', crudRoutes(BookIssue, 'library', { jsonKey: 'bookIssues' }));
 router.use('/schoolSettings', crudRoutes(SiteConfig, 'settings', { jsonKey: 'siteConfig' }));
-router.use('/broadcasts', crudRoutes(Broadcast, 'messages'));
-router.use('/notifications', crudRoutes(Notification, 'notifications'));
+router.use('/broadcasts', crudRoutes(Broadcast, 'messages', {
+  afterCreate: (req, broadcast) => notifyAudience(req, broadcast, 'New circular published'),
+}));
 router.use('/transportRoutes', crudRoutes(TransportRoute, 'transport'));
 router.use('/transportAssignments', crudRoutes(TransportAssignment, 'transport'));
 router.use('/enquiries', crudRoutes(Enquiry, 'admissions'));
 router.use('/admissions', crudRoutes(Admission, 'admissions'));
-router.use('/leaveRequests', crudRoutes(LeaveRequest, 'hr'));
+router.use('/leaveRequests', crudRoutes(LeaveRequest, 'hr', {
+  afterCreate: (req, leave) => leave.status === 'pending'
+    ? notifyTenantAdmins({
+        tenantId: req.tenantId,
+        title: 'Leave request submitted',
+        message: `${leave.employeeName || leave.teacherName || 'A staff member'} submitted a leave request.`,
+        createdBy: req.user._id || req.user.id,
+      })
+    : null,
+}));
 router.use('/payrollRecords', crudRoutes(PayrollRecord, 'hr'));
 router.use('/hostelRooms', crudRoutes(HostelRoom, 'hostel'));
 router.use('/hostelAllocations', crudRoutes(HostelAllocation, 'hostel'));
@@ -258,8 +322,12 @@ router.get(
   requireAuth,
   permit('fees', 'read'),
   asyncHandler(async (req, res) => {
-    if (!mongoReady()) return res.json(jsonRows(req, 'fees'));
-    const rows = await FeePayment.find(tenantQuery(req))
+    if (!mongoReady()) {
+      const own = linkedStudentId(req);
+      const rows = jsonRows(req, 'fees').filter((row) => own === undefined || String(row.studentId) === own);
+      return res.json(rows);
+    }
+    const rows = await FeePayment.find(applyLinkedStudentScope(req, tenantQuery(req)))
       .populate('studentId', 'name admissionNo')
       .lean();
     res.json(
@@ -288,6 +356,7 @@ router.post(
     }
     const created = await FeePayment.create({ ...req.body, ...tenantQuery(req) });
     emitTenant(req.tenantId, 'fees:created', created);
+    notifySafely(notifyFeeEvent(req, created), 'fees/created');
     res.status(201).json(created);
   }),
 );
@@ -337,6 +406,7 @@ router.post(
     await fee.save();
 
     emitTenant(req.tenantId, 'fees:paid', fee);
+    notifySafely(notifyFeeEvent(req, fee, 'received'), 'fees/paid');
     res.json({ ...fee.toObject(), id: fee._id, paidNow: payNow, balance: Math.max(0, Number(fee.amount) - newPaid) });
   }),
 );
@@ -349,14 +419,16 @@ router.get(
     const { date, studentId, month } = req.query;
     if (!mongoReady()) {
       let rows = readDb().attendance || [];
+      const own = linkedStudentId(req);
+      if (own !== undefined) rows = rows.filter((r) => String(r.studentId) === own);
       if (date) rows = rows.filter((r) => r.date === date);
-      if (studentId) rows = rows.filter((r) => r.studentId === studentId);
+      if (studentId && own === undefined) rows = rows.filter((r) => r.studentId === studentId);
       if (month) rows = rows.filter((r) => r.date?.startsWith(month));
       return res.json(rows);
     }
-    const q = tenantQuery(req);
+    const q = applyLinkedStudentScope(req, tenantQuery(req));
     if (date) q.date = date;
-    if (studentId) q.studentId = studentId;
+    if (studentId && linkedStudentId(req) === undefined) q.studentId = studentId;
     if (month) q.date = new RegExp(`^${month}`);
     const rows = await Attendance.find(q).populate('studentId', 'name rollNo').lean();
     res.json(rows.map((r) => ({ ...r, id: r._id, studentName: r.studentId?.name })));
@@ -404,7 +476,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const { month } = req.query;
     if (!mongoReady()) {
-      const rows = (readDb().attendance || []).filter((r) => !month || r.date?.startsWith(month));
+      const own = linkedStudentId(req);
+      const rows = (readDb().attendance || []).filter(
+        (r) => (own === undefined || String(r.studentId) === own) && (!month || r.date?.startsWith(month)),
+      );
       const map = new Map();
       for (const row of rows) {
         const item = map.get(row.studentId) || {
@@ -426,7 +501,7 @@ router.get(
       }
       return res.json([...map.values()]);
     }
-    const q = tenantQuery(req);
+    const q = applyLinkedStudentScope(req, tenantQuery(req));
     if (month) q.date = new RegExp(`^${month}`);
     const rows = await Attendance.find(q).lean();
     const map = new Map();
@@ -450,10 +525,13 @@ router.get(
   requireAuth,
   permit('exams', 'read'),
   asyncHandler(async (req, res) => {
-    if (!mongoReady()) return res.json(readDb().marks || []);
-    const q = tenantQuery(req);
+    if (!mongoReady()) {
+      const own = linkedStudentId(req);
+      return res.json((readDb().marks || []).filter((m) => own === undefined || String(m.studentId) === own));
+    }
+    const q = applyLinkedStudentScope(req, tenantQuery(req));
     if (req.query.examId) q.examId = req.query.examId;
-    if (req.query.studentId) q.studentId = req.query.studentId;
+    if (req.query.studentId && linkedStudentId(req) === undefined) q.studentId = req.query.studentId;
     res.json(await Mark.find(q).lean());
   }),
 );
@@ -487,6 +565,10 @@ router.get(
   requireAuth,
   permit('exams', 'read'),
   asyncHandler(async (req, res) => {
+    const own = linkedStudentId(req);
+    if (own !== undefined && own !== req.params.studentId) {
+      return res.status(404).json({ message: 'Report card not found' });
+    }
     if (!mongoReady()) {
       const marks = (readDb().marks || []).filter((m) => m.studentId === req.params.studentId);
       return res.json({ ...reportCardSummary(marks), ...buildReportCard(marks) });

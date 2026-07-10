@@ -15,7 +15,7 @@ function defaultSeed() {
     tenants: [
       {
         id: TENANT_ID,
-        name: 'Scholify Demo School',
+        name: 'PathshalaPro Demo School',
         slug: TENANT_SLUG,
         subdomain: 'demo',
         theme: { primaryColor: '#2563eb', secondaryColor: '#7c3aed' },
@@ -73,9 +73,9 @@ function defaultSeed() {
     messages: [],
     siteConfig: {
       tenantId: TENANT_ID,
-      branding: { schoolName: 'Scholify Demo School', tagline: 'Learn. Grow. Lead.' },
+      branding: { schoolName: 'PathshalaPro Demo School', tagline: 'Learn. Grow. Lead.' },
       theme: { primaryColor: '#2563eb', secondaryColor: '#7c3aed' },
-      dynamicPages: [{ key: 'about', title: 'About Us', content: 'Welcome to Scholify.' }],
+      dynamicPages: [{ key: 'about', title: 'About Us', content: 'Welcome to PathshalaPro.' }],
     },
   };
 }
