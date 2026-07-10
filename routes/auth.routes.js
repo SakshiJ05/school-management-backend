@@ -16,7 +16,7 @@ import {
 } from '../middleware/auth.middleware.js';
 import { ROLES } from '../config/permissions.js';
 import { revokeToken } from '../utils/tokenBlacklist.js';
-import { sendOtpEmail } from '../services/mail.service.js';
+import { sendOtpEmail, isMailConfigured } from '../services/mail.service.js';
 import { mirrorUserToSqlSafe } from '../utils/sqlMirror.js';
 import { devAuthAllowed } from '../utils/superAdminDev.js';
 import { rateLimit, loginRateLimit } from '../middleware/rateLimit.middleware.js';
@@ -102,15 +102,28 @@ router.post(
       }
     }
 
+    // With no SMTP configured the code could never reach the user, and `/register`
+    // would then reject every attempt against an OTP nobody can read. Skip the
+    // challenge entirely rather than locking signup shut.
+    if (!isMailConfigured()) {
+      console.warn('[AUTH] SMTP not configured — registration OTP skipped for', email);
+      return res.json({
+        message: 'Email verification is unavailable. Continue to create your account.',
+        data: { sent: false, otpRequired: false },
+      });
+    }
+
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + 90 * 1000; // 90 seconds (buffer for email delivery)
+
+    const result = await sendOtpEmail(email, otp, 'registration');
+    if (!result.sent) {
+      return res.status(502).json({ message: 'Could not send the OTP email. Please try again.' });
+    }
+
+    // Store only after delivery, so a failed send never blocks the next attempt.
     registerOtpStore.set(email, { otpHash: bcrypt.hashSync(otp, 10), expiresAt });
-
-    // Send the OTP to the email address
-    await sendOtpEmail(email, otp, 'registration');
-
-    console.log(`[DEV] Registration OTP for ${email}: ${otp}`);
-    res.json({ message: 'OTP sent to your email', data: { sent: true } });
+    res.json({ message: 'OTP sent to your email', data: { sent: true, otpRequired: true } });
   }),
 );
 
@@ -118,9 +131,11 @@ router.post(
   '/register',
   otpVerifyLimit,
   asyncHandler(async (req, res) => {
-    const { email, password, name, role, tenantSlug, otp } = req.body || {};
+    const { email, password, name, role, tenantSlug, schoolCode, otp } = req.body || {};
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const normalizedRole = String(role || '').trim().toLowerCase();
+    // The signup form calls this field `schoolCode`; accept either name.
+    const slug = String(tenantSlug || schoolCode || '').trim().toLowerCase() || 'demo-school';
 
     // Verify registration OTP if store has it
     const stored = registerOtpStore.get(normalizedEmail);
@@ -146,8 +161,8 @@ router.post(
     }
 
     if (mongoose.connection.readyState === 1) {
-      const tenant = await Tenant.findOne({ slug: tenantSlug || 'demo-school' });
-      if (!tenant) return res.status(400).json({ message: 'Invalid tenant' });
+      const tenant = await Tenant.findOne({ slug });
+      if (!tenant) return res.status(400).json({ message: `No school found with code "${slug}"` });
       const exists = await User.findOne({ tenantId: tenant._id, email: normalizedEmail });
       if (exists) return res.status(409).json({ message: 'Email already registered' });
       const user = await User.create({

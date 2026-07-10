@@ -36,7 +36,9 @@ export function signSession(user, tenantSlug = '') {
   return jwt.sign(
     { sub, role: user.role, tenantId, tenantSlug, purpose: 'session' },
     JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' },
+    // No refresh token on this route, so the session token itself must outlive
+    // normal usage gaps. Shorten via JWT_EXPIRES_IN if that trade-off changes.
+    { expiresIn: process.env.JWT_EXPIRES_IN || '30d' },
   );
 }
 

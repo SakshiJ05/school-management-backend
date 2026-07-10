@@ -2,6 +2,11 @@ import nodemailer from 'nodemailer';
 
 const smtpReady = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 
+/** Callers must not promise the user an email we cannot actually send. */
+export function isMailConfigured() {
+  return smtpReady;
+}
+
 export async function sendOtpEmail(to, otp, purpose = 'verification') {
   const appName = process.env.APP_NAME || 'PathshalaPro';
   const subject = `${appName} OTP verification`;
