@@ -29,11 +29,12 @@ export async function enforceSubscription(req, res, next) {
       });
     }
 
+    // DEMO/CLIENT-TESTING MODE: keep expired tenants writable while the mobile
+    // application is being validated. Tenant suspension is still enforced
+    // above, and RBAC/tenant scoping continue to protect every resource.
+    // Restore the HTTP 402 block before enabling production billing.
     if (status.expired && WRITE_METHODS.has(req.method)) {
-      return res.status(402).json({
-        message: 'Your subscription has expired. Please renew your plan to continue.',
-        code: 'SUBSCRIPTION_EXPIRED',
-      });
+      req.subscriptionWriteGrace = true;
     }
 
     next();
