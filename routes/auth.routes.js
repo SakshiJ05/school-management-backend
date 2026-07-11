@@ -168,8 +168,23 @@ router.post(
     }
 
     if (mongoose.connection.readyState === 1) {
-      const tenant = await Tenant.findOne({ slug });
-      if (!tenant) return res.status(400).json({ message: `No school found with code "${slug}"` });
+      let tenant = await Tenant.findOne({ slug });
+      // DEMO onboarding: a School Admin may create their school together with
+      // the first admin account. Staff/student roles must join an existing code.
+      if (!tenant && normalizedRole === 'school_admin') {
+        tenant = await Tenant.create({
+          name: `${String(name).trim()}'s School`,
+          slug,
+          email: normalizedEmail,
+          status: 'active',
+          plan: 'standard',
+        });
+      }
+      if (!tenant) {
+        return res.status(400).json({
+          message: `No school found with code "${slug}". Ask your School Admin for the correct code.`,
+        });
+      }
       const exists = await User.findOne({ tenantId: tenant._id, email: normalizedEmail });
       if (exists) return res.status(409).json({ message: 'Email already registered' });
       const user = await User.create({
