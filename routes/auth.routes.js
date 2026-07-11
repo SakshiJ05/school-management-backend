@@ -16,7 +16,7 @@ import {
 } from '../middleware/auth.middleware.js';
 import { ROLES } from '../config/permissions.js';
 import { revokeToken } from '../utils/tokenBlacklist.js';
-import { sendOtpEmail, isMailConfigured } from '../services/mail.service.js';
+import { sendOtpEmail, isMailConfigured, mailConfigurationStatus } from '../services/mail.service.js';
 import { mirrorUserToSqlSafe } from '../utils/sqlMirror.js';
 import { devAuthAllowed } from '../utils/superAdminDev.js';
 import { rateLimit, loginRateLimit } from '../middleware/rateLimit.middleware.js';
@@ -87,8 +87,12 @@ router.post(
   otpRequestLimit,
   asyncHandler(async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
+    const role = String(req.body?.role || '').trim().toLowerCase();
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
+    }
+    if (!['school_admin', 'admin', 'teacher'].includes(role)) {
+      return res.status(400).json({ message: 'Email OTP signup is available only for Admin and Teacher accounts.' });
     }
 
     // Check if email already registered
@@ -107,9 +111,10 @@ router.post(
     // challenge entirely rather than locking signup shut.
     if (!isMailConfigured()) {
       console.warn('[AUTH] SMTP not configured — registration OTP skipped for', email);
-      return res.json({
-        message: 'Email verification is unavailable. Continue to create your account.',
-        data: { sent: false, otpRequired: false },
+      const status = mailConfigurationStatus();
+      return res.status(503).json({
+        message: `OTP email service is not configured. Missing Render variables: ${status.missing.join(', ')}.`,
+        code: 'SMTP_NOT_CONFIGURED',
       });
     }
 
@@ -122,9 +127,9 @@ router.post(
       // the user can never read helps nobody — skip the challenge, as when SMTP
       // is absent, and leave the failure in the logs.
       console.warn('[AUTH] OTP email failed — registration OTP skipped for', email);
-      return res.json({
-        message: 'Email verification is unavailable. Continue to create your account.',
-        data: { sent: false, otpRequired: false },
+      return res.status(502).json({
+        message: `OTP email could not be sent. ${result.reason || 'Check SMTP credentials and Render SMTP access.'}`,
+        code: result.code || 'SMTP_SEND_FAILED',
       });
     }
 
@@ -146,6 +151,9 @@ router.post(
 
     // Verify registration OTP if store has it
     const stored = registerOtpStore.get(normalizedEmail);
+    if (['school_admin', 'admin', 'teacher'].includes(normalizedRole) && !stored) {
+      return res.status(400).json({ message: 'Request and verify the email OTP before creating this account.' });
+    }
     if (stored) {
       if (Date.now() > stored.expiresAt) {
         registerOtpStore.delete(normalizedEmail);

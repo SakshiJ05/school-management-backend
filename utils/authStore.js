@@ -11,7 +11,7 @@ function normalizeSlug(tenantSlug) {
 }
 
 async function findUserInMongo(normalizedEmail, password, slug) {
-  const user = await User.findOne({ email: normalizedEmail });
+  const user = await User.findOne({ $or: [{ email: normalizedEmail }, { username: normalizedEmail }] });
   if (!user?.passwordHash || !bcrypt.compareSync(String(password), user.passwordHash)) {
     return null;
   }
@@ -21,7 +21,9 @@ async function findUserInMongo(normalizedEmail, password, slug) {
 
 function findUserInJson(normalizedEmail, password, slug) {
   const db = readDb();
-  const user = (db.users || []).find((u) => String(u.email).toLowerCase() === normalizedEmail);
+  const user = (db.users || []).find(
+    (u) => String(u.email).toLowerCase() === normalizedEmail || String(u.username || '').toLowerCase() === normalizedEmail,
+  );
   if (!user?.passwordHash || !bcrypt.compareSync(String(password), user.passwordHash)) {
     return null;
   }

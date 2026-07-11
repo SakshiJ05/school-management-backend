@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     email: { type: String, required: true, trim: true, lowercase: true },
+    username: { type: String, trim: true, lowercase: true },
     passwordHash: { type: String, required: true },
     name: { type: String, required: true, trim: true },
     role: { type: String, enum: ROLES, required: true },
@@ -21,5 +22,6 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
+userSchema.index({ tenantId: 1, username: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.User || mongoose.model('User', userSchema);

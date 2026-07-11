@@ -19,6 +19,7 @@ export function userToPublic(user) {
   return {
     id,
     email: user.email,
+    username: user.username || '',
     name: user.name,
     role: user.role,
     status: user.status || 'active',

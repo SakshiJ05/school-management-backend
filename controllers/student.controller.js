@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import Student from '../models/student.model.js';
+import User from '../models/user.model.js';
+import bcrypt from 'bcryptjs';
 import { readDb, writeDb } from '../utils/db.js';
 import { tenantQuery } from '../utils/tenantFilter.js';
 import { emitTenant } from '../services/realtime.service.js';
@@ -205,10 +207,14 @@ export const StudentController = {
   create: async (req, res, next) => {
     try {
       const payload = fromBody(req.body);
+      const password = String(req.body?.password || '');
       const required = ['name', 'email', 'studentClass', 'section', 'rollNo', 'gender'];
       const missing = required.filter((k) => !payload[k] && payload[k] !== 0);
       if (missing.length) {
         return res.status(400).json({ message: `Missing required fields: ${missing.join(', ')}` });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Student password must be at least 6 characters' });
       }
       // Auto-generate admission number when the caller doesn't supply one.
       if (!payload.admissionNo) {
@@ -247,7 +253,33 @@ export const StudentController = {
         emitTenant(req.tenantId, 'students:created', dto);
         return res.status(201).json(dto);
       }
+      const loginId = String(payload.admissionNo).trim().toLowerCase();
+      const loginEmail = String(payload.email || `${loginId}@student.local`).trim().toLowerCase();
+      const duplicateAccount = await User.exists({
+        tenantId: req.tenantId,
+        $or: [{ email: loginEmail }, { username: loginId }],
+      });
+      if (duplicateAccount) {
+        return res.status(409).json({ message: 'A login account already exists for this email or admission number' });
+      }
       const created = await Student.create({ ...payload, ...tenantQuery(req) });
+      try {
+        const loginUser = await User.create({
+          tenantId: req.tenantId,
+          email: loginEmail,
+          username: loginId,
+          passwordHash: bcrypt.hashSync(password, 10),
+          name: created.name,
+          role: 'student',
+          status: 'active',
+          linkedStudentId: created._id,
+        });
+        created.userId = loginUser._id;
+        await created.save();
+      } catch (accountError) {
+        await Student.deleteOne({ _id: created._id });
+        throw accountError;
+      }
       emitTenant(req.tenantId, 'students:created', created);
       const event = {
         title: 'New student added',
@@ -256,7 +288,7 @@ export const StudentController = {
       };
       notifySafely(notifyTenantAdmins({ ...event, tenantId: req.tenantId }), 'student/admin');
       notifySafely(notifySuperAdmins(event), 'student/super-admin');
-      res.status(201).json(toDto(created));
+      res.status(201).json({ ...toDto(created), credentials: { loginId, password } });
     } catch (err) {
       next(err);
     }
