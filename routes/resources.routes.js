@@ -72,6 +72,40 @@ function applyLinkedStudentScope(req, query) {
 // Runs before the per-route requireAuth so req.user/req.tenantId are resolved here.
 router.use(requireAuth, enforceSubscription);
 
+/**
+ * Schools the caller can see — for a school user, their own tenant.
+ *
+ * The app has always called this to resolve a school code to an id, but the route
+ * did not exist: every call 404'd after a full round trip, several times per page
+ * load, and the error was swallowed silently.
+ */
+router.get(
+  '/tenant/schools',
+  asyncHandler(async (req, res) => {
+    if (!mongoReady()) {
+      const rows = (readDb().tenants || []).filter((t) => !req.tenantId || t.id === req.tenantId);
+      return res.json(rows.map((t) => ({ ...t, code: t.slug })));
+    }
+
+    const tenants = req.tenantId
+      ? await Tenant.find({ _id: req.tenantId }).lean()
+      : await Tenant.find().lean();
+
+    res.json(
+      tenants.map((t) => ({
+        id: String(t._id),
+        code: t.slug,
+        name: t.name,
+        subdomain: t.subdomain || '',
+        plan: t.plan,
+        status: t.status,
+        city: '',
+        logoUrl: t.logoUrl || '',
+      })),
+    );
+  }),
+);
+
 /** Current tenant's plan, status and usage — drives frontend module gating. */
 router.get(
   '/subscription/me',
@@ -466,6 +500,88 @@ router.post(
     );
     emitTenant(req.tenantId, 'attendance:updated', row);
     res.status(201).json(row);
+  }),
+);
+
+/**
+ * Save a whole day's register in one request.
+ *
+ * The UI previously fired one request per student against the generic
+ * /attendanceRecords CRUD route, which both failed validation and made a class
+ * of 40 cost 40 round trips. Rows are upserted on (tenant, student, date), so
+ * re-saving a day updates it instead of colliding with the unique index.
+ * Per-row failures are reported rather than sinking the whole batch.
+ */
+router.post(
+  '/attendance/bulk',
+  requireAuth,
+  permit('attendance', 'create'),
+  asyncHandler(async (req, res) => {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+    if (!rows.length) {
+      return res.status(400).json({ message: 'rows[] is required' });
+    }
+
+    const failed = [];
+    const valid = [];
+    for (const row of rows) {
+      const studentId = row?.studentId;
+      const date = row?.date;
+      const status = row?.status;
+      if (!studentId || !date || !status) {
+        failed.push({ studentId: studentId ?? null, reason: 'studentId, date and status are required' });
+        continue;
+      }
+      if (!['present', 'absent', 'late', 'excused', 'leave'].includes(String(status))) {
+        failed.push({ studentId, reason: `Invalid status "${status}"` });
+        continue;
+      }
+      valid.push({ studentId, date, status, remarks: row.remarks ?? row.note ?? '' });
+    }
+
+    if (!mongoReady()) {
+      const db = readDb();
+      db.attendance = db.attendance || [];
+      for (const row of valid) {
+        const existing = db.attendance.find((r) => r.studentId === row.studentId && r.date === row.date);
+        if (existing) {
+          Object.assign(existing, { status: row.status, remarks: row.remarks });
+        } else {
+          db.attendance.push({ id: `att_${Date.now()}_${row.studentId}`, ...row });
+        }
+      }
+      writeDb(db);
+      emitTenant(req.tenantId, 'attendance:updated', { count: valid.length });
+      return res.status(failed.length ? 207 : 201).json({ saved: valid.length, failed });
+    }
+
+    let saved = 0;
+    if (valid.length) {
+      const ops = valid.map((row) => ({
+        updateOne: {
+          filter: { ...tenantQuery(req), studentId: row.studentId, date: row.date },
+          update: { $set: { status: row.status, remarks: row.remarks, ...tenantQuery(req) } },
+          upsert: true,
+        },
+      }));
+      try {
+        const result = await Attendance.bulkWrite(ops, { ordered: false });
+        // matchedCount already covers the modified rows — adding modifiedCount too
+        // would double-count every row that was updated rather than inserted.
+        saved = (result.upsertedCount || 0) + (result.matchedCount || 0);
+      } catch (err) {
+        // ordered:false still applies the good rows; report only the ones that broke.
+        saved = err.result?.nUpserted ?? 0;
+        for (const writeError of err.writeErrors ?? []) {
+          const row = valid[writeError.index];
+          failed.push({ studentId: row?.studentId ?? null, reason: writeError.errmsg || 'Write failed' });
+        }
+        if (!(err.writeErrors ?? []).length) throw err;
+      }
+    }
+
+    emitTenant(req.tenantId, 'attendance:updated', { count: saved });
+    res.status(failed.length ? 207 : 201).json({ saved, failed });
   }),
 );
 

@@ -7,7 +7,13 @@ const attendanceSchema = new mongoose.Schema(
     classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
     teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
     date: { type: String, required: true },
-    status: { type: String, enum: ['present', 'absent', 'leave'], required: true },
+    // `late` and `excused` are offered by the app's status picker; `leave` is kept
+    // for rows written by older builds.
+    status: {
+      type: String,
+      enum: ['present', 'absent', 'late', 'excused', 'leave'],
+      required: true,
+    },
     remarks: { type: String, default: '' },
   },
   { timestamps: true },

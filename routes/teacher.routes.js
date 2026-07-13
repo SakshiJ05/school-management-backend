@@ -8,7 +8,7 @@ const router = express.Router();
 
 export const teacherOtpStore = new Map();
 
-router.post('/request-otp', async (req, res) => {
+router.post('/request-otp', permit('teachers', 'create'), async (req, res) => {
   try {
     const email = String(req.body?.email || '').trim().toLowerCase();
     if (!email) {
@@ -56,7 +56,7 @@ function verifyTeacherOtp(req, res, next) {
 }
 
 router.get('/', permit('teachers', 'read'), TeacherController.getAll);
-router.get('/:id', TeacherController.getById);
+router.get('/:id', permit('teachers', 'read'), TeacherController.getById);
 router.post('/', permit('teachers', 'create'), verifyTeacherOtp, TeacherController.create);
 // Angular client sends PATCH for edits; PUT kept for API compatibility.
 router.put('/:id', permit('teachers', 'update'), TeacherController.update);

@@ -103,6 +103,31 @@ function makeId(prefix) {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function positiveInt(value, fallback, max = Number.MAX_SAFE_INTEGER) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
+}
+
+function matchesQuery(row, query) {
+  const search = String(query.search || '').trim().toLowerCase();
+  const studentClass = String(query.class || '').trim().toLowerCase();
+  const section = String(query.section || '').trim().toLowerCase();
+  const status = String(query.status || '').trim().toLowerCase();
+  const value = (input) => String(input ?? '').trim().toLowerCase();
+
+  return (
+    (!search || [row.name, row.email, row.admissionNo, row.rollNo, row.parentName, row.parentPhone, row.phone]
+      .some((field) => value(field).includes(search))) &&
+    (!studentClass || value(row.class || row.studentClass) === studentClass) &&
+    (!section || value(row.section) === section) &&
+    (!status || value(row.status) === status)
+  );
+}
+
 /** Generate a unique admission number for the tenant when one isn't supplied. */
 async function generateAdmissionNo(req) {
   const year = new Date().getFullYear();
@@ -156,11 +181,57 @@ export const StudentController = {
   getAll: async (req, res, next) => {
     try {
       const own = ownStudentId(req);
-      if (own === null) return res.json([]); // student/parent with no linked student
+      const paginated = req.query.page != null || req.query.limit != null;
+      const page = positiveInt(req.query.page, 1);
+      const pageSize = positiveInt(req.query.limit, 10, 50);
+      if (own === null) {
+        return res.json(paginated
+          ? { items: [], page, pageSize, total: 0, totalPages: 1, facets: { classes: [], sections: [], statuses: [] } }
+          : []);
+      }
       if (mongoose.connection.readyState === 1) {
         try {
           const filter = tenantQuery(req);
           if (own) filter._id = own;
+          if (req.query.search) {
+            const search = new RegExp(escapeRegex(String(req.query.search).trim()), 'i');
+            filter.$or = [
+              { name: search },
+              { email: search },
+              { admissionNo: search },
+              { rollNo: search },
+              { parentName: search },
+              { parentPhone: search },
+              { phone: search },
+            ];
+          }
+          if (req.query.class) filter.studentClass = new RegExp(`^${escapeRegex(req.query.class)}$`, 'i');
+          if (req.query.section) filter.section = new RegExp(`^${escapeRegex(req.query.section)}$`, 'i');
+          if (req.query.status) filter.status = new RegExp(`^${escapeRegex(req.query.status)}$`, 'i');
+
+          if (paginated) {
+            const facetFilter = { ...tenantQuery(req), ...(own ? { _id: own } : {}) };
+            const [rows, total, classes, sections, statuses] = await Promise.all([
+              Student.find(filter).sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize).lean(),
+              Student.countDocuments(filter),
+              Student.distinct('studentClass', facetFilter),
+              Student.distinct('section', facetFilter),
+              Student.distinct('status', facetFilter),
+            ]);
+            return res.json({
+              items: rows.map((r) => toDto(r)),
+              page,
+              pageSize,
+              total,
+              totalPages: Math.max(1, Math.ceil(total / pageSize)),
+              facets: {
+                classes: classes.filter(Boolean),
+                sections: sections.filter(Boolean),
+                statuses: statuses.filter(Boolean),
+              },
+            });
+          }
+
           const rows = await Student.find(filter).sort({ createdAt: -1 }).lean();
           // Always return the live result (even when empty) — never leak data.json demo rows.
           return res.json(rows.map((r) => toDto(r)));
@@ -173,7 +244,25 @@ export const StudentController = {
       let rows = db.students || [];
       if (req.tenantId) rows = rows.filter((s) => s.tenantId === req.tenantId);
       if (own) rows = rows.filter((s) => s.id === own);
-      res.json(rows.map((r) => jsonToDto(r, maps)).reverse());
+      const allRows = rows.map((r) => jsonToDto(r, maps)).reverse();
+      if (paginated) {
+        const filtered = allRows.filter((row) => matchesQuery(row, req.query));
+        const start = (page - 1) * pageSize;
+        const unique = (values) => [...new Set(values.filter(Boolean))];
+        return res.json({
+          items: filtered.slice(start, start + pageSize),
+          page,
+          pageSize,
+          total: filtered.length,
+          totalPages: Math.max(1, Math.ceil(filtered.length / pageSize)),
+          facets: {
+            classes: unique(allRows.map((row) => row.class)),
+            sections: unique(allRows.map((row) => row.section)),
+            statuses: unique(allRows.map((row) => row.status)),
+          },
+        });
+      }
+      res.json(allRows);
     } catch (err) {
       next(err);
     }

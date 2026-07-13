@@ -40,5 +40,7 @@ const studentSchema = new mongoose.Schema(
 );
 
 studentSchema.index({ tenantId: 1, admissionNo: 1 }, { unique: true });
+studentSchema.index({ tenantId: 1, createdAt: -1 });
+studentSchema.index({ tenantId: 1, studentClass: 1, section: 1, status: 1, createdAt: -1 });
 
 export default mongoose.models.Student || mongoose.model('Student', studentSchema);
